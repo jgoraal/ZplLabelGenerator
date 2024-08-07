@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Windows.Forms;
 
 namespace ZplLabelGenerator
 {
@@ -37,15 +38,23 @@ namespace ZplLabelGenerator
             string hostname = "Hostname: "+ selectedEntry.Strings.ReadSafe(PwDefs.TitleField);
             string purchaseDate = "Data zakupu: " + DateTime.Now.ToString("dd/MM/yyyy");
             string warrantyDate = "Data gwarnacji: " + DateTime.Now.AddYears(1).ToString("dd/MM/yyyy");
-            string labelDate = "Data wydruku etykiety: " + DateTime.Now.ToString("dd/MM/yyyy");
+            string labelDate = DateTime.Now.ToString("dd/MM/yyyy");
             string serialNumber = "Numer seryjny: " + (entriesStrings.ContainsKey("S/N") ? entriesStrings["S/N"] : "Nieznane");
             string model = "Model: " + (entriesStrings.ContainsKey("Model") ? entriesStrings["Model"] : "Nieznane");
             string macAddress = "MAC: " + GetMACAddress();
 
-            string qrCodeData = $"{hostname}\n{purchaseDate}\n{warrantyDate}\n{labelDate}";
+            string qrCodeData = $"{hostname}_0D_0A{purchaseDate}_0D_0A{warrantyDate}_0D_0AData wygenerowania etykiety: {labelDate}";
             string zpl = GenerateZPL(hostname, purchaseDate, warrantyDate, labelDate, serialNumber, model, macAddress, qrCodeData);
 
-            System.IO.File.WriteAllText("label.zpl", zpl);
+            using (var file = new SaveFileDialog())
+            {
+                file.FileName = $"{_host.Database.Name}_{selectedEntry.Strings.Get("Title").ReadString()}_etykieta.zpl";
+
+                if (file.ShowDialog() == DialogResult.OK)
+                {
+                    System.IO.File.WriteAllText(file.FileName, zpl);
+                }
+            }
 
             MessageCreator.CreateInfoMessage("Etykieta wygenerowana", "Plik label.zpl został wygenerowany.");
         }
@@ -59,21 +68,28 @@ namespace ZplLabelGenerator
                 select nic.GetPhysicalAddress().ToString()
             ).FirstOrDefault();
 
-            return macAddr;
+            var formattedMacAddr = string.Join(":", Enumerable.Range(0, macAddr.Length / 2)
+                                          .Select(i => macAddr.Substring(i * 2, 2)));
+
+            return formattedMacAddr;
         }
 
         private string GenerateZPL(string hostname, string purchaseDate, string warrantyDate, string labelDate, string serialNumber, string model, string macAddress, string qrCodeData)
         {
             return $@"
 ^XA
-^FO30,25^BQN,2,5^FDQA,{qrCodeData}^FS
-^FO315,35^A0N,40,30^FD{serialNumber}^FS
-^FO315,75^A0N,40,30^FD{model}^FS
-^FO315,115^A0N,40,40^FD{macAddress}^FS
-^FO315,155^A0N,40,40^FD{hostname}^FS
-^FO315,195^A0N,40,40^FD{purchaseDate}^FS
-^FO315,235^A0N,40,40^FD{warrantyDate}^FS
-^FO315,275^A0N,40,40^FD{labelDate}^FS
+^CI28
+^PW700
+^LL300
+^MD30
+^FO0,15^BQN,2,4^FH^FDQA,{qrCodeData}^FS
+^FO0,245^A0N,25,25^FD{labelDate}^FS
+^FO235,25^A0N,25,25^FD{serialNumber}^FS
+^FO235,65^A0N,25,25^FD{model}^FS
+^FO235,105^A0N,25,25^FD{macAddress}^FS
+^FO235,145^A0N,25,25^FD{hostname}^FS
+^FO235,185^A0N,25,25^FD{purchaseDate}^FS
+^FO235,225^A0N,25,25^FD{warrantyDate}^FS
 ^XZ";
         }
     }

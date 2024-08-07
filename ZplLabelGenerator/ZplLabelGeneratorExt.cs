@@ -46,7 +46,7 @@ namespace ZplLabelGenerator
             if (t == PluginMenuType.Entry)
             {
                 var tsMenuItem = new ToolStripMenuItem();
-                tsMenuItem.Text = "Wygeneruj kod QR";
+                tsMenuItem.Text = "Wygeneruj etykietę ZPL";
                 tsMenuItem.Click += ToolsMenuItemClick;
 
                 return tsMenuItem;
